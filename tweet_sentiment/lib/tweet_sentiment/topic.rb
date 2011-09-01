@@ -14,10 +14,7 @@ module TweetSentiment
     private
     
     def get_data
-      url = "http://data.tweetsentiments.com:8080/api/search.json?topic=#{URI.escape(@topic.downcase)}"
-      resp = Net::HTTP.get_response(URI.parse(url))
-      data = resp.body
-      result = JSON.parse(data)
+      result = fetch
       @sentiment_index = result["sentiment_index"]          # sentiment index for the topic
       @positive = result["positive"]                 # number of positive tweets
       @negative = result["negative"]                 # number of negative tweets
@@ -27,8 +24,8 @@ module TweetSentiment
       @tweets = []
       result["results"].each do |raw|
         @tweets << TweetSentiment::Tweet.new(
-          result["results"][0]["text"],
-          result["results"][0]["sentiment"]
+          raw["text"],
+          raw["sentiment"]
         )
       end
     rescue JSON::ParserError
@@ -38,6 +35,15 @@ module TweetSentiment
       @positive = nil
       @negative = nil
       @neutral = nil
+    end
+    
+    def fetch
+      url = "http://data.tweetsentiments.com:8080/api/search.json?topic=#{URI.escape(@topic)}"
+      resp = Net::HTTP.get_response(URI.parse(url))
+      while (resp.code == "500")
+        resp = Net::HTTP.get_response(URI.parse(url))
+      end
+      JSON.parse(resp.body)
     end
   end
 end
